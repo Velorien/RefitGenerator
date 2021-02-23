@@ -10,137 +10,114 @@ using Microsoft.OpenApi.Readers;
 
 namespace RefitGenerator
 {
-    public class Generator
+    public static class Generator
     {
         const string Indent = "    ";
         const string Indent2 = Indent + Indent;
         const string JpnFormat = "[JsonPropertyName(\"{0}\")]";
-        const string RefifFormat = "[{0}(\"{1}\")]";
+        const string RefitAttributeFormat = "[{0}(\"{1}\")]";
         const string PropFormat = "public {0} {1} {{ get; set; }}";
-        private const string MultipartFormData = "multipart/form-data";
+        const string MultipartFormData = "multipart/form-data";
+        const string FormDataUrlEncoded = "application/x-www-form-urlencoded";
+        const string TemplatesDirectory = "Templates";
 
-        public static async Task Generate(string url, FileInfo file, DirectoryInfo outputDirectory, string projectName)
+        public static async Task Generate(GeneratorOptions options)
         {
             Stream openApiStream = null;
-            if (url != null)
+            if (options.Url != null)
             {
                 var http = new HttpClient();
-                openApiStream = await http.GetStreamAsync(url);
+                openApiStream = await http.GetStreamAsync(options.Url);
             }
-            else if (file != null) openApiStream = File.OpenRead(file.FullName);
+            else if (options.File != null) openApiStream = File.OpenRead(options.File.FullName);
             else
             {
                 Console.WriteLine("Either a file or a url is required");
                 return;
             }
 
-            if (!Directory.Exists(outputDirectory.FullName))
-                Directory.CreateDirectory(outputDirectory.FullName);
-
-            if (projectName == null) projectName = outputDirectory.Name;
-
-            var openApiDocument = new OpenApiStreamReader().Read(openApiStream, out var diagnostic);
-            openApiStream.Dispose();
-
-            File.Copy(Path.Combine(AppContext.BaseDirectory, "csprojtemplate.xml"), Path.Combine(outputDirectory.FullName, projectName + ".csproj"));
-            Directory.CreateDirectory(Path.Combine(outputDirectory.FullName, "Models"));
-            Directory.CreateDirectory(Path.Combine(outputDirectory.FullName, "Apis"));
-
-            foreach (var schema in openApiDocument.Components.Schemas)
+            try
             {
-                string classCode = GetModelClass(schema.Key, projectName, schema.Value.Properties);
-                await File.WriteAllTextAsync(Path.Combine(outputDirectory.FullName, "Models", schema.Key + ".cs"), classCode);
-            }
+                if (options.RemoveIfExists && Directory.Exists(options.OutputDirectory.FullName))
+                    Directory.Delete(options.OutputDirectory.FullName, true);
 
-            var allApis = new List<string>();
-            foreach (var pathGroup in openApiDocument.Paths.GroupBy(x => FirstTagOrDefault(x.Value)))
+                if (!Directory.Exists(options.OutputDirectory.FullName))
+                    Directory.CreateDirectory(options.OutputDirectory.FullName);
+
+                if (options.ProjectName == null) options.ProjectName = options.OutputDirectory.Name;
+
+                var openApiDocument = new OpenApiStreamReader().Read(openApiStream, out var diagnostic);
+                openApiStream.Dispose();
+
+                File.Copy(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "csprojtemplate.xml"),
+                    Path.Combine(options.OutputDirectory.FullName, options.ProjectName + ".csproj"));
+                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Models"));
+                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Apis"));
+
+                foreach (var schema in openApiDocument.Components.Schemas)
+                {
+                    string className = schema.Key.ToPascalCase();
+                    string classCode = GetModelClass(className, options.ProjectName, schema.Value.Properties);
+                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Models", className + ".cs"), classCode);
+                }
+
+                foreach (var pathGroup in openApiDocument.Paths.GroupBy(x => FirstTagOrDefault(x.Value)))
+                {
+                    string apiName = pathGroup.Key.ToPascalCase();
+                    string apiCode = GetApiInterface(pathGroup.Key, options.ProjectName, pathGroup);
+                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Apis", $"I{apiName}Api.cs"), apiCode);
+                }
+            }
+            catch (IOException)
             {
-                string apiName = ToPascalCase(pathGroup.Key);
-                allApis.Add(apiName);
-                string apiCode = GetApiInterface(pathGroup.Key, projectName, pathGroup);
-                await File.WriteAllTextAsync(Path.Combine(outputDirectory.FullName, "Apis", $"I{apiName}Api.cs"), apiCode);
+                Console.WriteLine("Could not write to that location. Maybe the files are in use?");
             }
-
-            if (allApis.Count > 1)
-            {
-                string combinedApiName = GetCombinedApiName(allApis);
-                string apiCode = GetCombinedApiInterface(allApis, projectName, combinedApiName);
-                await File.WriteAllTextAsync(Path.Combine(outputDirectory.FullName, "Apis", $"I{combinedApiName}Api.cs"), apiCode);
-            }
-        }
-
-        static string GetCombinedApiName(List<string> allApis)
-        {
-            string combinedApiName = "Combined";
-            int counter = 0;
-            while (allApis.Contains(combinedApiName))
-            {
-                counter++;
-                combinedApiName = $"Combined{counter}";
-            }
-
-            return combinedApiName;
-        }
-
-        static string GetCombinedApiInterface(IEnumerable<string> allApis, string @namespace, string combinedApiName)
-        {
-            var sb = new StringBuilder();
-
-            sb.AppendLine("namespace " + @namespace + ".Apis");
-            sb.AppendLine("{"); // open namespace
-            sb.AppendLine($"{Indent}public interface I{combinedApiName}Api : {string.Join(", ", allApis.Select(x => $"I{x}Api"))}");
-            sb.AppendLine(Indent + "{");
-            WriteClosingCharacters(sb);
-
-            return sb.ToString();
         }
 
         static string GetApiInterface(string apiName, string @namespace, IEnumerable<KeyValuePair<string, OpenApiPathItem>> paths)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("using System;");
-            sb.AppendLine("using System.IO;");
-            sb.AppendLine("using System.Threading.Tasks;");
-            sb.AppendLine("using System.Collections.Generic;");
-            sb.AppendLine("using Refit;");
-            sb.AppendLine($"using {@namespace}.Models;");
-            sb.AppendLine();
+            string interfaceTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "InterfaceTemplate.csx"));
 
-            sb.AppendLine("namespace " + @namespace + ".Apis");
-            sb.AppendLine("{"); // open namespace
-            sb.AppendLine(Indent + $"public interface I{ToPascalCase(apiName)}Api");
-            sb.AppendLine(Indent + "{"); // open class
-
-            int total = paths.SelectMany(x => x.Value.Operations).Count();
-            int current = 0;
             foreach (var path in paths)
             {
-                foreach (var operation in path.Value.Operations)
+                foreach (var operationDefiniton in path.Value.Operations)
                 {
-                    current++;
-                    if (operation.Value.Deprecated) sb.AppendLine(Indent2 + "[Obsolete]");
-                    if (operation.Value.RequestBody?.Content?.ContainsKey(MultipartFormData) ?? false) sb.AppendLine(Indent2 + "[Multipart]");
-                    sb.AppendFormat(Indent2 + RefifFormat, operation.Key, path.Key);
+                    var method = operationDefiniton.Key;
+                    var operation = operationDefiniton.Value;
+
                     sb.AppendLine();
 
+                    if (operation.Deprecated)
+                        sb.AppendLine(Indent2 + "[Obsolete]");
 
-                    var success = operation.Value.Responses.FirstOrDefault(x => x.Key.StartsWith("2"));
-                    string returnType = success.Key == null ? "Task" : $"Task<{ToCLRType(success.Value.Content.FirstOrDefault().Value?.Schema)}>";
-                    string parameters = string.Join(", ", operation.Value.Parameters.Select(ParseParameter)
-                                                            .Concat(ParseBody(operation.Value.RequestBody)));
-                    sb.AppendLine($"{Indent2}{returnType} {GetOperationName(operation.Value, operation.Key, path.Key)}({parameters});");
-                    if (current != total) sb.AppendLine();
+                    if (operation.RequestBody?.Content?.ContainsKey(MultipartFormData) ?? false)
+                        sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
+
+                    sb.AppendFormat(Indent2 + RefitAttributeFormat, method, path.Key); // write refit attribute
+                    sb.AppendLine();
+
+                    // assuming there's at most one type of success response per operation
+                    // if there's none or content is not defined - do not expect response content type
+                    var success = operation.Responses.FirstOrDefault(x => x.Key.StartsWith("2"));
+                    string returnType = success.Key == null || !success.Value.Content.Any() ?
+                        "Task" : $"Task<{ToCLRType(success.Value.Content.FirstOrDefault().Value?.Schema)}>";
+
+                    // build parameters list from query, route, body, etc.
+                    string parameters = string.Join(", ",
+                        operation.Parameters.Select(ParseParameter).Concat(ParseBody(operation.RequestBody)));
+
+                    sb.AppendLine($"{Indent2}{returnType} {GetOperationName(operation, method, path.Key)}({parameters});");
                 }
             }
 
-            WriteClosingCharacters(sb);
-            return sb.ToString();
+            return string.Format(interfaceTemplate, @namespace, apiName.ToPascalCase(), sb.ToString());
         }
 
         private static string ParseParameter(OpenApiParameter parameter)
         {
             var nameSegments = new List<string>();
-            string camelCaseName = ToCamelCase(parameter.Name);
+            string camelCaseName = parameter.Name.ToCamelCase();
 
             if (parameter.In == ParameterLocation.Query && (parameter.Schema.Type == "object" || parameter.Schema.Type == "array"))
                 nameSegments.Add("[Query]");
@@ -155,91 +132,73 @@ namespace RefitGenerator
         private static string GetOperationName(OpenApiOperation operation, OperationType operationType, string path)
         {
             if (operation.OperationId != null)
-                return ToPascalCase(operation.OperationId);
+                return operation.OperationId.ToPascalCase();
 
-            return operationType + "__" + string.Join("_", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Where(x => !x.StartsWith("{")).Select(Capitalize));
+            // operation id not found, create a name from method and route
+            return operationType + "__" + string.Join("_",
+                path.Split('/', StringSplitOptions.RemoveEmptyEntries).Where(x => !x.StartsWith("{")).Select(x => x.Capitalize()));
         }
 
-        private static string[] ParseBody(OpenApiRequestBody body)
+        private static IEnumerable<string> ParseBody(OpenApiRequestBody body)
         {
             if (body == null || body.Content == null) return Array.Empty<string>();
-            if (body.Content.ContainsKey(MultipartFormData))
+            if (body.Content.ContainsKey(MultipartFormData) || body.Content.ContainsKey(FormDataUrlEncoded))
             {
-                var formData = new List<string>();
-                foreach (var property in body.Content[MultipartFormData].Schema.Properties)
+                var parameters = new List<string>();
+                body.Content.TryGetValue(MultipartFormData, out var multipart);
+                body.Content.TryGetValue(FormDataUrlEncoded, out var formData);
+
+                foreach (var property in (multipart ?? formData).Schema.Properties)
                 {
-                    string camelCase = ToCamelCase(property.Key);
-                    if (property.Value.Type == "file" || property.Value.Type == "string" && property.Value.Format == "binary")
+                    string propertyName = property.Key;
+                    var propertySchema = property.Value;
+                    string camelCaseName = propertyName.ToCamelCase();
+
+                    if (propertySchema.Type == "array" && propertySchema.Items.Type == "string" && propertySchema.Items.Format == "binary")
                     {
-                        if (camelCase != property.Key)
-                            formData.Add($"[AliasAs(\"{property.Key}\")] Stream {camelCase}");
-                        else formData.Add($"Stream {camelCase}");
+                        if (camelCaseName != propertyName)
+                            parameters.Add($"[AliasAs(\"{propertyName}\")] IEnumerable<StreamPart> {camelCaseName}");
+                        else parameters.Add($"IEnumerable<StreamPart> {camelCaseName}");
+                    }
+                    else if (propertySchema.Type == "file" || propertySchema.Type == "string" && propertySchema.Format == "binary")
+                    {
+                        if (camelCaseName != propertyName)
+                            parameters.Add($"[AliasAs(\"{propertyName}\")] StreamPart {camelCaseName}");
+                        else parameters.Add($"StreamPart {camelCaseName}");
                     }
                     else
                     {
-                        if (camelCase != property.Key)
-                            formData.Add($"[AliasAs(\"{property.Key}\")] Dictionary<string, object> {camelCase}");
-                        else formData.Add($"Dictionary<string, object> {camelCase}");
+                        if (camelCaseName != propertyName)
+                            parameters.Add($"[AliasAs(\"{propertyName}\"), Body(BodySerializationMethod.UrlEncoded)] {ToCLRType(propertySchema)} {camelCaseName}");
+                        else parameters.Add($"[Body(BodySerializationMethod.UrlEncoded)] {ToCLRType(propertySchema)} {camelCaseName}");
                     }
                 }
 
-                return formData.ToArray();
+                return parameters;
             }
-            if (body.Content.Any(x => x.Value.Schema.Type == "string" && (x.Value.Schema.Format == "binary" || x.Value.Schema.Format == "base64")))
-            {
-                return Array.Empty<string>();
-            }
-            return new [] { $"[Body] {ToCLRType(body.Content.FirstOrDefault().Value?.Schema)} body" };
+
+            return new[] { $"[Body] {ToCLRType(body.Content.FirstOrDefault().Value?.Schema)} body" };
         }
 
         static string GetModelClass(string className, string @namespace, IDictionary<string, OpenApiSchema> properties)
         {
             var sb = new StringBuilder();
-            
-            sb.AppendLine("using System.Collections.Generic;");
-            sb.AppendLine("using System.Text.Json.Serialization;");
-            sb.AppendLine();
+            string modelTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "ModelTemplate.csx"));
 
-            sb.AppendLine("namespace " + @namespace + ".Models");
-            sb.AppendLine("{"); // open namespace
-            sb.AppendLine(Indent + "public class " + className);
-            sb.AppendLine(Indent + "{"); // open class
-
-            WriteModelProperties(sb, properties);
-            WriteClosingCharacters(sb);
-
-            return sb.ToString();
-        }
-
-        static void WriteClosingCharacters(StringBuilder sb)
-        {
-            sb.AppendLine(Indent + "}"); // close class
-            sb.AppendLine("}"); // close namespace
-        }
-
-        static void WriteModelProperties(StringBuilder sb, IDictionary<string, OpenApiSchema> properties)
-        {
-            int counter = 0;
             foreach (var property in properties)
             {
-                counter++;
-                sb.AppendFormat(Indent2 + JpnFormat, property.Key);
+                string propertyName = property.Key;
+                var propertySchema = property.Value;
+
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + PropFormat, ToCLRType(property.Value), ToPascalCase(property.Key));
+                sb.AppendFormat(Indent2 + JpnFormat, propertyName);
                 sb.AppendLine();
-                if (properties.Count != counter) sb.AppendLine();
+                sb.AppendFormat(Indent2 + PropFormat, ToCLRType(propertySchema), propertyName.ToPascalCase());
+                sb.AppendLine();
             }
+
+            return string.Format(modelTemplate, @namespace, className, sb.ToString());
         }
-
-        static string ToPascalCase(string input) => string.Join("", input.Split('_').Select(Capitalize));
-
-        static string ToCamelCase(string input) 
-        {
-            var segments = input.Split('_');
-            return string.Join("", new string[] { segments[0] }.Concat(segments[1..].Select(Capitalize)));
-        }
-
-        static string Capitalize(string input) => input[0].ToString().ToUpper() + input[1..];
 
         static string FirstTagOrDefault(OpenApiPathItem path) => path.Operations.FirstOrDefault().Value?.Tags?.FirstOrDefault()?.Name ?? "Default";
 
@@ -252,7 +211,9 @@ namespace RefitGenerator
             { Type: "number" } => "double",
             { Type: "integer", Format: "int64" } => "long",
             { Type: "integer" } => "int",
-            _ => property?.Reference?.Id ?? "UndefinedReference"
+            { Reference: { Id: { } id } } => id,
+            { AdditionalProperties: { } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
+            _ => "Dictionary<string, object>"
         };
     }
 }

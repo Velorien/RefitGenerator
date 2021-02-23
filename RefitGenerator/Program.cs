@@ -27,10 +27,13 @@ namespace RefitGenerator
                 new Option<string>(
                     aliases: new[] { "-p", "--projectName" },
                     description: "Project name and namespace"
-                )
+                ),
+                new Option<bool>(
+                    aliases: new[] { "-r", "--removeIfExists" },
+                    description: "Remove target directory if exists")
             };
 
-            rootCommand.Handler = CommandHandler.Create<string, FileInfo, DirectoryInfo, string>(Generator.Generate);
+            rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);
 
             await rootCommand.InvokeAsync(args);
         }

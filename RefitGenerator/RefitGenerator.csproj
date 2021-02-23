@@ -1,16 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
+    <TargetFramework>net5.0</TargetFramework>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>oapi2refit</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="csprojtemplate.xml" />
+    <None Remove="Templates\InterfaceTemplate.csx" />
+    <None Remove="Templates\ModelTemplate.csx" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="csprojtemplate.xml">
+    <Content Include="Templates\csprojtemplate.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Templates\ModelTemplate.csx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Templates\InterfaceTemplate.csx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
