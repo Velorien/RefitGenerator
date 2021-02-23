@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>oapi2refit</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="csprojtemplate.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="csprojtemplate.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.OpenApi.Readers" Version="1.2.3" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.20574.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="csprojtemplate.xml" />
+  </ItemGroup>
+
+</Project>
