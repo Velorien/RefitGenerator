@@ -2,6 +2,7 @@
 using System.IO;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.CommandLine.Builder;
 
 namespace RefitGenerator
 {
@@ -9,29 +10,30 @@ namespace RefitGenerator
     {
         static async Task Main(string[] args)
         {
-            var rootCommand = new RootCommand
+            var rootCommand = new RootCommand("A utility to generate Refit client code from OpenApi json or yaml")
             {
-                new Option<string>(
-                    aliases: new [] { "-u", "--url" },
-                    description: "A url to OpenApi json or yaml"
-                ),
-                new Option<FileInfo>(
-                    aliases: new[] { "-f", "--file" },
-                    description: "Path to OpenApi json or yaml file"
-                ),
-                new Option<DirectoryInfo>(
-                    aliases: new[] { "-o", "--outputDirectory" },
-                    description: "Destination directory",
-                    getDefaultValue: () =>  new DirectoryInfo("./")
-                ),
-                new Option<string>(
-                    aliases: new[] { "-p", "--projectName" },
-                    description: "Project name and namespace"
-                ),
-                new Option<bool>(
-                    aliases: new[] { "-r", "--removeIfExists" },
-                    description: "Remove target directory if exists"),
-                new Option<bool>("--executable", "Generate executable .NET 5 console app template")
+                new Option<string>(new[] { "-u", "--url" })
+                {
+                    Description = "A url to OpenApi json or yaml"
+                },
+                new Option<FileInfo>(new[] { "-f", "--file" })
+                {
+                    Description = "Path to OpenApi json or yaml file"
+                },
+                new Option<DirectoryInfo>(new[] { "-o", "--outputDirectory" }, () => new DirectoryInfo("./"))
+                {
+                    Description = "Output directory"
+                },
+                new Option<string>(new[] { "-p", "--projectName" })
+                {
+                    Description = "Project name and namespace",
+                    IsRequired = true
+                },
+                new Option<bool>(new[] { "-r", "--removeIfExists" })
+                {
+                    Description = "Remove target directory if exists"
+                },
+                new Option<bool>("--executable", "Generate an executable .NET 5 console app instead of .NET Standard 2.0 library")
             };
 
             rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);
