@@ -30,7 +30,8 @@ namespace RefitGenerator
                 ),
                 new Option<bool>(
                     aliases: new[] { "-r", "--removeIfExists" },
-                    description: "Remove target directory if exists")
+                    description: "Remove target directory if exists"),
+                new Option<bool>("--executable", "Generate executable .NET 5 console app template")
             };
 
             rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);

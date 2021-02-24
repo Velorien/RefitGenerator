@@ -9,5 +9,6 @@ namespace RefitGenerator
         public DirectoryInfo OutputDirectory { get; set; }
         public string ProjectName { get; set; }
         public bool RemoveIfExists { get; set; }
+        public bool Executable { get; set; }
     }
 }

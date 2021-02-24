@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 
 namespace RefitGenerator.TestApi.Controllers
@@ -12,9 +10,9 @@ namespace RefitGenerator.TestApi.Controllers
     public class FileTestController : ControllerBase
     {
         [HttpGet(Name = "downloadFile")]
-        public FileStreamResult Download()
+        public FileResult Download()
         {
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes("Hello RefitGenerator!"));
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes("Hello world!"));
             return new FileStreamResult(stream, "text/plain") { FileDownloadName = "hello.txt" };
         }
 

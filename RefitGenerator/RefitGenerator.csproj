@@ -3,16 +3,30 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>oapi2refit</ToolCommandName>
+    <ToolCommandName>openapitorefit</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
+    <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="csprojtemplate.xml" />
+    <None Remove="Templates\ClientTemplate.csx" />
+    <None Remove="Templates\CsprojExe.xml" />
     <None Remove="Templates\InterfaceTemplate.csx" />
     <None Remove="Templates\ModelTemplate.csx" />
+    <None Remove="Templates\ProgramTemplate.csx" />
   </ItemGroup>
+
   <ItemGroup>
-    <Content Include="Templates\csprojtemplate.xml">
+    <Content Include="Templates\CsprojExe.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Templates\CsprojLib.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Templates\ClientTemplate.csx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Templates\ProgramTemplate.csx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Templates\ModelTemplate.csx">
@@ -29,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="csprojtemplate.xml" />
+    <Folder Include="nupkg\" />
   </ItemGroup>
 
 </Project>

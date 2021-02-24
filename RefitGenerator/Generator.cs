@@ -16,7 +16,8 @@ namespace RefitGenerator
         const string Indent2 = Indent + Indent;
         const string JpnFormat = "[JsonPropertyName(\"{0}\")]";
         const string RefitAttributeFormat = "[{0}(\"{1}\")]";
-        const string PropFormat = "public {0} {1} {{ get; set; }}";
+        const string ModelPropFormat = "public {0} {1} {{ get; set; }}";
+        const string ApiPropFormat = "public I{0}Api {0}Api {{ get; }}";
         const string MultipartFormData = "multipart/form-data";
         const string FormDataUrlEncoded = "application/x-www-form-urlencoded";
         const string TemplatesDirectory = "Templates";
@@ -49,7 +50,7 @@ namespace RefitGenerator
                 var openApiDocument = new OpenApiStreamReader().Read(openApiStream, out var diagnostic);
                 openApiStream.Dispose();
 
-                File.Copy(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "csprojtemplate.xml"),
+                File.Copy(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, options.Executable ? "CsprojExe.xml" : "CsprojLib.xml"),
                     Path.Combine(options.OutputDirectory.FullName, options.ProjectName + ".csproj"));
                 Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Models"));
                 Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Apis"));
@@ -61,17 +62,38 @@ namespace RefitGenerator
                     await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Models", className + ".cs"), classCode);
                 }
 
+                var allApis = new List<string>();
                 foreach (var pathGroup in openApiDocument.Paths.GroupBy(x => FirstTagOrDefault(x.Value)))
                 {
                     string apiName = pathGroup.Key.ToPascalCase();
+                    allApis.Add(apiName);
                     string apiCode = GetApiInterface(pathGroup.Key, options.ProjectName, pathGroup);
                     await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Apis", $"I{apiName}Api.cs"), apiCode);
+                }
+
+                string clientCode = GetClientClass(options.ProjectName, allApis);
+                await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, $"ApiClient.cs"), clientCode);
+
+                if (options.Executable)
+                {
+                    string programTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "ProgramTemplate.csx"));
+                    await File.WriteAllTextAsync(
+                        Path.Combine(options.OutputDirectory.FullName, "Program.cs"),
+                        string.Format(programTemplate, options.ProjectName, openApiDocument.Servers.FirstOrDefault()?.Url ?? "url missing!"));
                 }
             }
             catch (IOException)
             {
                 Console.WriteLine("Could not write to that location. Maybe the files are in use?");
             }
+        }
+
+        private static string GetClientClass(string projectName, List<string> allApis)
+        {
+            string clientTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "ClientTemplate.csx"));
+            string properties = $"{Environment.NewLine}{string.Join(Environment.NewLine, allApis.Select(x => Indent2 + string.Format(ApiPropFormat, x)))}{Environment.NewLine}";
+            string constructor = string.Join(Environment.NewLine, allApis.Select(x => $"{Indent}{Indent2}{x}Api = RestService.For<I{x}Api>(http);"));
+            return string.Format(clientTemplate, projectName, constructor, properties);
         }
 
         static string GetApiInterface(string apiName, string @namespace, IEnumerable<KeyValuePair<string, OpenApiPathItem>> paths)
@@ -91,7 +113,8 @@ namespace RefitGenerator
                     if (operation.Deprecated)
                         sb.AppendLine(Indent2 + "[Obsolete]");
 
-                    if (operation.RequestBody?.Content?.ContainsKey(MultipartFormData) ?? false)
+                    var bodyContent = operation.RequestBody?.Content;
+                    if (bodyContent?.ContainsKey(MultipartFormData) ?? false)
                         sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
 
                     sb.AppendFormat(Indent2 + RefitAttributeFormat, method, path.Key); // write refit attribute
@@ -169,8 +192,8 @@ namespace RefitGenerator
                     else
                     {
                         if (camelCaseName != propertyName)
-                            parameters.Add($"[AliasAs(\"{propertyName}\"), Body(BodySerializationMethod.UrlEncoded)] {ToCLRType(propertySchema)} {camelCaseName}");
-                        else parameters.Add($"[Body(BodySerializationMethod.UrlEncoded)] {ToCLRType(propertySchema)} {camelCaseName}");
+                            parameters.Add($"[AliasAs(\"{propertyName}\")] {ToCLRType(propertySchema)} {camelCaseName}");
+                        else parameters.Add($"{ToCLRType(propertySchema)} {camelCaseName}");
                     }
                 }
 
@@ -193,7 +216,7 @@ namespace RefitGenerator
                 sb.AppendLine();
                 sb.AppendFormat(Indent2 + JpnFormat, propertyName);
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + PropFormat, ToCLRType(propertySchema), propertyName.ToPascalCase());
+                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(propertySchema), propertyName.ToPascalCase());
                 sb.AppendLine();
             }
 
@@ -205,6 +228,7 @@ namespace RefitGenerator
         static string ToCLRType(OpenApiSchema property) => property switch
         {
             { Type: "array" } => ToCLRType(property.Items) + "[]",
+            { Type: "string", Format: "binary" } => "Stream",
             { Type: "string" } => "string",
             { Type: "boolean" } => "bool",
             { Type: "number", Format: "float" } => "float",
