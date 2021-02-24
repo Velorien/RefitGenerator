@@ -128,7 +128,7 @@ namespace RefitGenerator
 
                     // build parameters list from query, route, body, etc.
                     string parameters = string.Join(", ",
-                        operation.Parameters.Select(ParseParameter).Concat(ParseBody(operation.RequestBody)));
+                        operation.Parameters.Select(ParseParameter).Where(x => x != null).Concat(ParseBody(operation.RequestBody)));
 
                     sb.AppendLine($"{Indent2}{returnType} {GetOperationName(operation, method, path.Key)}({parameters});");
                 }
@@ -139,6 +139,9 @@ namespace RefitGenerator
 
         private static string ParseParameter(OpenApiParameter parameter)
         {
+            // todo: support it somehow
+            if (parameter.In == ParameterLocation.Header) return null;
+
             var nameSegments = new List<string>();
             string camelCaseName = parameter.Name.ToCamelCase();
 
