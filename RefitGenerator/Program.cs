@@ -27,7 +27,6 @@ namespace RefitGenerator
                 new Option<string>(new[] { "-p", "--projectName" })
                 {
                     Description = "Project name and namespace",
-                    IsRequired = true
                 },
                 new Option<bool>(new[] { "-r", "--removeIfExists" })
                 {
