@@ -9,7 +9,7 @@ using System.Text;
 namespace RefitGenerator.TestApi.Controllers
 {
     [ApiController, Route("[controller]")]
-    public class FormTestController : ControllerBase
+    public class FormController : ControllerBase
     {
         [HttpPost("formDictionary", Name = "postFormDictionary")]
         public ActionResult<Dictionary<string, string>> Post([FromForm] Dictionary<string, string> formContent) => Ok(formContent);

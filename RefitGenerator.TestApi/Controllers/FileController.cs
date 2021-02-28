@@ -7,7 +7,7 @@ using System.Text;
 namespace RefitGenerator.TestApi.Controllers
 {
     [ApiController, Route("[controller]")]
-    public class FileTestController : ControllerBase
+    public class FileController : ControllerBase
     {
         [HttpGet(Name = "downloadFile"), Produces(typeof(FileResult))]
         public FileResult Download()

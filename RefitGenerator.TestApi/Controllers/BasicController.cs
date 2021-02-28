@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace RefitGenerator.TestApi.Controllers
 {
     [ApiController, Route("[controller]")]
-    public class BasicTestController : ControllerBase
+    public class BasicController : ControllerBase
     {
         [HttpGet(Name = "basicGet")]
         public ActionResult Get() => Ok();

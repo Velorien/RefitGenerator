@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace RefitGenerator.TestApi.Controllers
 {
     [ApiController, Route("[controller]")]
-    public class DictionaryTestController : ControllerBase
+    public class DictionaryController : ControllerBase
     {
         [HttpPost("stringDictionary", Name = "stringDictionary")]
         public ActionResult<Dictionary<string, string>> Post(Dictionary<string, string> dictionary) => Ok(dictionary);

@@ -7,21 +7,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Readers;
+using RefitGenerator.Helpers;
+
+using static RefitGenerator.Helpers.TypeHelper;
+using static RefitGenerator.Helpers.Strings;
 
 namespace RefitGenerator
 {
     public static class Generator
     {
-        const string Indent = "    ";
-        const string Indent2 = Indent + Indent;
-        const string JpnFormat = "[JsonPropertyName(\"{0}\")]";
-        const string RefitAttributeFormat = "[{0}(\"{1}\")]";
-        const string ModelPropFormat = "public {0} {1} {{ get; set; }}";
-        const string ApiPropFormat = "public I{0}Api {0}Api {{ get; }}";
-        const string MultipartFormData = "multipart/form-data";
-        const string FormDataUrlEncoded = "application/x-www-form-urlencoded";
-        const string TemplatesDirectory = "Templates";
-
         public static async Task Generate(GeneratorOptions options)
         {
             Stream openApiStream = null;
@@ -52,14 +46,14 @@ namespace RefitGenerator
 
                 File.Copy(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, options.Executable ? "CsprojExe.xml" : "CsprojLib.xml"),
                     Path.Combine(options.OutputDirectory.FullName, options.ProjectName + ".csproj"));
-                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Models"));
-                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, "Apis"));
+                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory));
+                Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, ApisDirectory));
 
                 foreach (var schema in openApiDocument.Components.Schemas)
                 {
                     string className = schema.Key.ToPascalCase();
                     string classCode = GetModelClass(className, options.ProjectName, schema.Value.Properties);
-                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Models", className + ".cs"), classCode);
+                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory, className + ".cs"), classCode);
                 }
 
                 var allApis = new List<string>();
@@ -68,7 +62,7 @@ namespace RefitGenerator
                     string apiName = pathGroup.Key.ToPascalCase();
                     allApis.Add(apiName);
                     string apiCode = GetApiInterface(pathGroup.Key, options.ProjectName, pathGroup);
-                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, "Apis", $"I{apiName}Api.cs"), apiCode);
+                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, ApisDirectory, $"I{apiName}Api.cs"), apiCode);
                 }
 
                 string clientCode = GetClientClass(options.ProjectName, allApis);
@@ -92,7 +86,7 @@ namespace RefitGenerator
         {
             string clientTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "ClientTemplate.csx"));
             string properties = $"{Environment.NewLine}{string.Join(Environment.NewLine, allApis.Select(x => Indent2 + string.Format(ApiPropFormat, x)))}{Environment.NewLine}";
-            string constructor = string.Join(Environment.NewLine, allApis.Select(x => $"{Indent}{Indent2}{x}Api = RestService.For<I{x}Api>(http);"));
+            string constructor = string.Join(Environment.NewLine, allApis.Select(x => $"{Indent3}{x}Api = RestService.For<I{x}Api>(http);"));
             return string.Format(clientTemplate, projectName, constructor, properties);
         }
 
@@ -108,33 +102,41 @@ namespace RefitGenerator
                     var method = operationDefiniton.Key;
                     var operation = operationDefiniton.Value;
 
-                    sb.AppendLine();
-
-                    if (operation.Deprecated)
-                        sb.AppendLine(Indent2 + "[Obsolete]");
-
-                    var bodyContent = operation.RequestBody?.Content;
-                    if (bodyContent?.ContainsKey(MultipartFormData) ?? false)
-                        sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
-
-                    sb.AppendFormat(Indent2 + RefitAttributeFormat, method, path.Key); // write refit attribute
-                    sb.AppendLine();
-
-                    // assuming there's at most one type of success response per operation
-                    // if there's none or content is not defined - do not expect response content type
-                    var success = operation.Responses.FirstOrDefault(x => x.Key.StartsWith("2"));
-                    string returnType = success.Key == null || !success.Value.Content.Any() ?
-                        "Task" : $"Task<{ToCLRType(success.Value.Content.FirstOrDefault().Value?.Schema)}>";
-
-                    // build parameters list from query, route, body, etc.
-                    string parameters = string.Join(", ",
-                        operation.Parameters.Select(ParseParameter).Where(x => x != null).Concat(ParseBody(operation.RequestBody)));
-
-                    sb.AppendLine($"{Indent2}{returnType} {GetOperationName(operation, method, path.Key)}({parameters});");
+                    sb.Append(GetApiInterfaceMethod(method, path.Key, operation));
                 }
             }
 
             return string.Format(interfaceTemplate, @namespace, apiName.ToPascalCase(), sb.ToString());
+        }
+
+        private static string GetApiInterfaceMethod(OperationType method, string path, OpenApiOperation operation)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+
+            if (operation.Deprecated)
+                sb.AppendLine(Indent2 + "[Obsolete]");
+
+            var bodyContent = operation.RequestBody?.Content;
+            if (bodyContent?.ContainsKey(MultipartFormData) ?? false)
+                sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
+
+            sb.AppendFormat(Indent2 + RefitAttributeFormat, method, path); // write refit attribute
+            sb.AppendLine();
+
+            // assuming there's at most one type of success response per operation
+            // if there's none or content is not defined - do not expect response content type
+            var success = operation.Responses.FirstOrDefault(x => x.Key.StartsWith("2"));
+            string returnType = success.Key == null || !success.Value.Content.Any() ?
+                "Task" : $"Task<{ToCLRType(success.Value.Content.FirstOrDefault().Value?.Schema)}>";
+
+            // build parameters list from query, route, body, etc.
+            string parameters = string.Join(", ",
+                operation.Parameters.Select(ParseParameter).Where(x => x != null).Concat(ParseBody(operation.RequestBody)));
+
+            sb.AppendLine($"{Indent2}{returnType} {GetOperationName(operation, method, path)}({parameters});");
+
+            return sb.ToString();
         }
 
         private static string ParseParameter(OpenApiParameter parameter)
@@ -145,7 +147,7 @@ namespace RefitGenerator
             var nameSegments = new List<string>();
             string camelCaseName = parameter.Name.ToCamelCase();
 
-            if (parameter.In == ParameterLocation.Query && (parameter.Schema.Type == "object" || parameter.Schema.Type == "array"))
+            if (parameter.In == ParameterLocation.Query)
                 nameSegments.Add("[Query]");
 
             if (camelCaseName != parameter.Name) nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
@@ -227,20 +229,5 @@ namespace RefitGenerator
         }
 
         static string FirstTagOrDefault(OpenApiPathItem path) => path.Operations.FirstOrDefault().Value?.Tags?.FirstOrDefault()?.Name ?? "Default";
-
-        static string ToCLRType(OpenApiSchema property) => property switch
-        {
-            { Type: "array" } => ToCLRType(property.Items) + "[]",
-            { Type: "string", Format: "binary" } => "Stream",
-            { Type: "string" } => "string",
-            { Type: "boolean" } => "bool",
-            { Type: "number", Format: "float" } => "float",
-            { Type: "number" } => "double",
-            { Type: "integer", Format: "int64" } => "long",
-            { Type: "integer" } => "int",
-            { Reference: { Id: { } id } } => id,
-            { AdditionalProperties: { } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
-            _ => "Dictionary<string, object>"
-        };
     }
 }
