@@ -9,7 +9,7 @@ namespace RefitGenerator.TestApi.Controllers
     [ApiController, Route("[controller]")]
     public class FileTestController : ControllerBase
     {
-        [HttpGet(Name = "downloadFile")]
+        [HttpGet(Name = "downloadFile"), Produces(typeof(FileResult))]
         public FileResult Download()
         {
             var stream = new MemoryStream(Encoding.UTF8.GetBytes("Hello world!"));
