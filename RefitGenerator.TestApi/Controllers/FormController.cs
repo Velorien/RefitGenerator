@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RefitGenerator.TestApi.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,5 +17,8 @@ namespace RefitGenerator.TestApi.Controllers
 
         [HttpPost("formParameters", Name = "postFormParameters")]
         public ActionResult<string> Post([FromForm] string text, [FromForm] int number) => Ok($"{text}-{number}");
+
+        [HttpPost("formModel", Name = "postFormModel")]
+        public ActionResult<NumericTestModel> Post([FromForm] NumericTestModel model) => Ok(model);
     }
 }

@@ -2,7 +2,6 @@
 using System.IO;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.CommandLine.Builder;
 
 namespace RefitGenerator
 {
@@ -27,6 +26,10 @@ namespace RefitGenerator
                 new Option<string>(new[] { "-p", "--projectName" })
                 {
                     Description = "Project name and namespace",
+                },
+                new Option<GroupingStrategy>(new [] { "--groupBy", "--groupingStrategy" }, () => GroupingStrategy.FirstTag)
+                {
+                    Description = "Strategy for grouping paths into api interfaces"
                 },
                 new Option<bool>(new[] { "-r", "--removeIfExists" })
                 {

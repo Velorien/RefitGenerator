@@ -15,7 +15,7 @@ namespace RefitGenerator.Helpers
             { Type: "integer", Format: "int64" } => "long",
             { Type: "integer" } => "int",
             { Reference: { Id: { } id } } => id,
-            { AdditionalProperties: { } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
+            { AdditionalProperties: { Properties: { Count: > 0 } } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
             _ => "Dictionary<string, object>"
         };
     }

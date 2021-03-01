@@ -10,5 +10,11 @@ namespace RefitGenerator
         public string ProjectName { get; set; }
         public bool RemoveIfExists { get; set; }
         public bool Executable { get; set; }
+        public GroupingStrategy GroupingStrategy { get; set; }
+    }
+
+    public enum GroupingStrategy
+    {
+        FirstTag, MostCommonTag, LeastCommonTag
     }
 }

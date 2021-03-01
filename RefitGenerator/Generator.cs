@@ -22,12 +22,19 @@ namespace RefitGenerator
             if (options.Url != null)
             {
                 var http = new HttpClient();
-                openApiStream = await http.GetStreamAsync(options.Url);
+                try
+                {
+                    openApiStream = await http.GetStreamAsync(options.Url);
+                }
+                catch
+                {
+                    ConsoleHelper.WriteLineColored("Failed to load data from the given URL", ConsoleColor.Red);
+                }
             }
             else if (options.File != null) openApiStream = File.OpenRead(options.File.FullName);
             else
             {
-                Console.WriteLine("Either a file or a url is required");
+                ConsoleHelper.WriteLineColored("Either a file or a url is required", ConsoleColor.Red);
                 return;
             }
 
@@ -49,15 +56,19 @@ namespace RefitGenerator
                 Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory));
                 Directory.CreateDirectory(Path.Combine(options.OutputDirectory.FullName, ApisDirectory));
 
+                if (openApiDocument.Components == null && openApiDocument.Paths == null)
+                {
+                    ConsoleHelper.WriteLineColored("Input document is not an OpenApi definition.", ConsoleColor.Red);
+                    return;
+                }
+
                 foreach (var schema in openApiDocument.Components.Schemas)
                 {
-                    string className = schema.Key.ToPascalCase();
-                    string classCode = GetModelClass(className, options.ProjectName, schema.Value.Properties);
-                    await File.WriteAllTextAsync(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory, className + ".cs"), classCode);
+                    ModelWriter.WriteModel(options, schema.Key.ToPascalCase(), schema.Value.Properties);
                 }
 
                 var allApis = new List<string>();
-                foreach (var pathGroup in openApiDocument.Paths.GroupBy(x => FirstTagOrDefault(x.Value)))
+                foreach (var pathGroup in GetPathGroups(openApiDocument.Paths, options.GroupingStrategy))
                 {
                     string apiName = pathGroup.Key.ToPascalCase();
                     allApis.Add(apiName);
@@ -78,8 +89,35 @@ namespace RefitGenerator
             }
             catch (IOException)
             {
-                Console.WriteLine("Could not write to that location. Maybe the files are in use?");
+                ConsoleHelper.WriteLineColored("Could not write to that location.", ConsoleColor.Red);
             }
+        }
+
+        private static IEnumerable<IGrouping<string, KeyValuePair<string, OpenApiPathItem>>> GetPathGroups(OpenApiPaths paths, GroupingStrategy groupingStrategy)
+        {
+            static string FirstTagOrDefault(OpenApiPathItem path) => path.Operations.FirstOrDefault().Value?.Tags?.FirstOrDefault()?.Name ?? "Default";
+            static string MostCommonTag(OpenApiPathItem path, Dictionary<string, int> tags, bool mostCommon)
+            {
+                var pathTags = path.Operations.FirstOrDefault().Value?.Tags;
+                if (!pathTags?.Any() ?? true) return "Default";
+                var ordered = pathTags.OrderBy(x => tags[x.Name]);
+                return mostCommon ? ordered.Last().Name : ordered.First().Name;
+            };
+
+            if (groupingStrategy == GroupingStrategy.FirstTag)
+            {
+                return paths.GroupBy(x => FirstTagOrDefault(x.Value));
+            }
+
+            if (groupingStrategy == GroupingStrategy.MostCommonTag || groupingStrategy == GroupingStrategy.LeastCommonTag)
+            {
+                var allTags = paths.SelectMany(x => x.Value.Operations.SelectMany(x => x.Value.Tags));
+                var tagDictionary = allTags.GroupBy(x => x.Name).ToDictionary(k => k.Key, v => v.Count());
+
+                return paths.GroupBy(x => MostCommonTag(x.Value, tagDictionary, groupingStrategy == GroupingStrategy.MostCommonTag));
+            }
+
+            throw new ArgumentException($"Unsupported value: {groupingStrategy}", nameof(groupingStrategy));
         }
 
         private static string GetClientClass(string projectName, List<string> allApis)
@@ -127,8 +165,8 @@ namespace RefitGenerator
             // assuming there's at most one type of success response per operation
             // if there's none or content is not defined - do not expect response content type
             var success = operation.Responses.FirstOrDefault(x => x.Key.StartsWith("2"));
-            string returnType = success.Key == null || !success.Value.Content.Any() ?
-                "Task" : $"Task<{ToCLRType(success.Value.Content.FirstOrDefault().Value?.Schema)}>";
+            var responseSchema = success.Value?.Content?.FirstOrDefault().Value?.Schema;
+            string returnType = responseSchema == null ? "Task" : $"Task<{ToCLRType(responseSchema)}>";
 
             // build parameters list from query, route, body, etc.
             string parameters = string.Join(", ",
@@ -207,27 +245,5 @@ namespace RefitGenerator
 
             return new[] { $"[Body] {ToCLRType(body.Content.FirstOrDefault().Value?.Schema)} body" };
         }
-
-        static string GetModelClass(string className, string @namespace, IDictionary<string, OpenApiSchema> properties)
-        {
-            var sb = new StringBuilder();
-            string modelTemplate = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, TemplatesDirectory, "ModelTemplate.csx"));
-
-            foreach (var property in properties)
-            {
-                string propertyName = property.Key;
-                var propertySchema = property.Value;
-
-                sb.AppendLine();
-                sb.AppendFormat(Indent2 + JpnFormat, propertyName);
-                sb.AppendLine();
-                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(propertySchema), propertyName.ToPascalCase());
-                sb.AppendLine();
-            }
-
-            return string.Format(modelTemplate, @namespace, className, sb.ToString());
-        }
-
-        static string FirstTagOrDefault(OpenApiPathItem path) => path.Operations.FirstOrDefault().Value?.Tags?.FirstOrDefault()?.Name ?? "Default";
     }
 }
