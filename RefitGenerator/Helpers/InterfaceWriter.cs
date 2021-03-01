@@ -40,8 +40,8 @@ namespace RefitGenerator.Helpers
                 sb.AppendLine(Indent2 + "[Obsolete]");
 
             var bodyContent = operation.RequestBody?.Content;
-            if (bodyContent?.ContainsKey(MultipartFormData) ?? false)
-                sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
+            bool isMultipart = bodyContent != null && (bodyContent.ContainsKey(MultipartFormData) || bodyContent.ContainsKey(FormDataUrlEncoded));
+            if (isMultipart) sb.AppendLine(Indent2 + "[Multipart]"); // is it a multipart upload endpoint?
 
             sb.AppendFormat(Indent2 + RefitAttributeFormat, method, path); // write refit attribute
             sb.AppendLine();
@@ -54,7 +54,7 @@ namespace RefitGenerator.Helpers
             string returnType = "Task";
             if (responseSchema != null && (!responseSchema.Properties.Any() || responseSchema.Reference != null))
             {
-                returnType = $"Task<{ToCLRType(responseSchema)}>";
+                returnType = $"Task<{ToCLRType(options, operationName, "Response", responseSchema)}>";
             }
             else if (responseSchema != null && responseSchema.Reference == null)
             {
@@ -64,8 +64,10 @@ namespace RefitGenerator.Helpers
             }
 
             // build parameters list from query, route, body, etc.
-            string parameters = string.Join(", ",
-                operation.Parameters.Select(ParseParameter).Where(x => x != null).Concat(ParseBody(operation.RequestBody)));
+            string parameters = string.Join(", ", operation.Parameters
+                    .Select(x => ParseParameter(options, operationName, x))
+                    .Where(x => x != null)
+                    .Concat(ParseBody(options, operationName, operation.RequestBody)));
 
             sb.AppendLine($"{Indent2}{returnType} {operationName}({parameters});");
 
@@ -82,7 +84,7 @@ namespace RefitGenerator.Helpers
                 path.Split('/', StringSplitOptions.RemoveEmptyEntries).Where(x => !x.StartsWith("{")).Select(x => x.Capitalize()));
         }
 
-        private static string ParseParameter(OpenApiParameter parameter)
+        private static string ParseParameter(GeneratorOptions options, string operationName, OpenApiParameter parameter)
         {
             // todo: support it somehow
             if (parameter.In == ParameterLocation.Header) return null;
@@ -95,12 +97,12 @@ namespace RefitGenerator.Helpers
 
             if (camelCaseName != parameter.Name) nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
 
-            nameSegments.Add(ToCLRType(parameter.Schema));
+            nameSegments.Add(ToCLRType(options, operationName, "Parameter", parameter.Schema));
             nameSegments.Add(camelCaseName);
             return string.Join(" ", nameSegments);
         }
 
-        private static IEnumerable<string> ParseBody(OpenApiRequestBody body)
+        private static IEnumerable<string> ParseBody(GeneratorOptions options, string operationName, OpenApiRequestBody body)
         {
             if (body == null || body.Content == null) return Array.Empty<string>();
             if (body.Content.ContainsKey(MultipartFormData) || body.Content.ContainsKey(FormDataUrlEncoded))
@@ -130,15 +132,15 @@ namespace RefitGenerator.Helpers
                     else
                     {
                         if (camelCaseName != propertyName)
-                            parameters.Add($"[AliasAs(\"{propertyName}\")] {ToCLRType(propertySchema)} {camelCaseName}");
-                        else parameters.Add($"{ToCLRType(propertySchema)} {camelCaseName}");
+                            parameters.Add($"[AliasAs(\"{propertyName}\")] {ToCLRType(options, operationName, "Parameter", propertySchema)} {camelCaseName}");
+                        else parameters.Add($"{ToCLRType(options, operationName, "Parameter", propertySchema)} {camelCaseName}");
                     }
                 }
 
                 return parameters;
             }
 
-            return new[] { $"[Body] {ToCLRType(body.Content.FirstOrDefault().Value?.Schema)} body" };
+            return new[] { $"[Body] {ToCLRType(options, operationName, "Body", body.Content.FirstOrDefault().Value?.Schema)} body" };
         }
     }
 }

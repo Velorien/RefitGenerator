@@ -2,6 +2,8 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using {0}.Models;
+
 namespace {0}
 {{
     class Program

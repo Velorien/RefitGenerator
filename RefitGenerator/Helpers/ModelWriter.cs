@@ -14,6 +14,8 @@ namespace RefitGenerator.Helpers
     {
         public static void WriteModel(GeneratorOptions options, string className, IDictionary<string, OpenApiSchema> properties)
         {
+            if (!properties.Any()) return;
+
             string classCode = GetModelClass(options, className, properties);
             File.WriteAllText(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory, className + ".cs"), classCode);
         }
@@ -31,7 +33,7 @@ namespace RefitGenerator.Helpers
                 sb.AppendLine();
                 sb.AppendFormat(Indent2 + JpnFormat, propertyName);
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(propertySchema), propertyName.ToPascalCase());
+                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyName.ToPascalCase(), propertySchema), propertyName.ToPascalCase());
                 sb.AppendLine();
             }
 

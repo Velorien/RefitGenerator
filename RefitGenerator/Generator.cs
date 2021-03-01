@@ -64,7 +64,7 @@ namespace RefitGenerator
 
                 foreach (var schema in openApiDocument.Components.Schemas)
                 {
-                    ModelWriter.WriteModel(options, schema.Key.ToPascalCase(), schema.Value.Properties);
+                    GetCompoundType(options, schema.Key.ToPascalCase(), schema.Value);
                 }
 
                 var allApis = new List<string>();
