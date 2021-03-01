@@ -14,9 +14,9 @@ namespace RefitGenerator.Helpers
             { Type: "number" } => "double",
             { Type: "integer", Format: "int64" } => "long",
             { Type: "integer" } => "int",
-            { Reference: { Id: { } id } } => id,
-            { AdditionalProperties: { Properties: { Count: > 0 } } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
-            _ => "Dictionary<string, object>"
+            { Reference: { Id: { } id } } => id.ToPascalCase(),
+            { AdditionalProperties: { } ap } => $"Dictionary<string, {ToCLRType(ap)}>",
+            _ => "object"
         };
     }
 }
