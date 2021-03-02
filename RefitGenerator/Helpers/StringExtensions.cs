@@ -7,9 +7,10 @@ namespace RefitGenerator.Helpers
 {
     static class StringExtensions
     {
-        private static readonly char[] separators = new[] { '_', '.', '-', ' ' };
+        private static readonly char[] separators = new[] { '_', '.', '-', ' ', ',', ';', ':' };
 
-        public static string ToPascalCase(this string input) => string.Join("", input.Split(separators).Select(Capitalize));
+        public static string ToPascalCase(this string input) => string.Join("", input.Split(separators, StringSplitOptions.RemoveEmptyEntries)
+                                                                                     .Select(Capitalize));
 
         public static string Capitalize(this string input) => input[0].ToString().ToUpper() + input[1..];
 

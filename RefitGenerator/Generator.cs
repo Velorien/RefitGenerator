@@ -62,10 +62,7 @@ namespace RefitGenerator
                     return;
                 }
 
-                foreach (var schema in openApiDocument.Components.Schemas)
-                {
-                    GetCompoundType(options, schema.Key.ToPascalCase(), schema.Value);
-                }
+                SchemaProcessor.ProcessSchemas(options, openApiDocument.Components.Schemas);
 
                 var allApis = new List<string>();
                 foreach (var pathGroup in GetPathGroups(openApiDocument.Paths, options.GroupingStrategy))
@@ -98,10 +95,10 @@ namespace RefitGenerator
             static string FirstTagOrDefault(OpenApiPathItem path) => path.Operations.FirstOrDefault().Value?.Tags?.FirstOrDefault()?.Name ?? "Default";
             static string MostCommonTag(OpenApiPathItem path, Dictionary<string, int> tags, bool mostCommon)
             {
-                var pathTags = path.Operations.FirstOrDefault().Value?.Tags;
+                var pathTags = path.Operations.FirstOrDefault().Value?.Tags?.Select(x => x.Name.ToPascalCase());
                 if (!pathTags?.Any() ?? true) return "Default";
-                var ordered = pathTags.OrderBy(x => tags[x.Name]);
-                return mostCommon ? ordered.Last().Name : ordered.First().Name;
+                var ordered = pathTags.OrderBy(x => tags[x]);
+                return mostCommon ? ordered.Last() : ordered.First();
             };
 
             if (groupingStrategy == GroupingStrategy.FirstTag)
@@ -111,8 +108,8 @@ namespace RefitGenerator
 
             if (groupingStrategy == GroupingStrategy.MostCommonTag || groupingStrategy == GroupingStrategy.LeastCommonTag)
             {
-                var allTags = paths.SelectMany(x => x.Value.Operations.SelectMany(x => x.Value.Tags));
-                var tagDictionary = allTags.GroupBy(x => x.Name).ToDictionary(k => k.Key, v => v.Count());
+                var allTags = paths.SelectMany(x => x.Value.Operations.SelectMany(x => x.Value.Tags)).Select(x => x.Name.ToPascalCase());
+                var tagDictionary = allTags.GroupBy(x => x).ToDictionary(k => k.Key, v => v.Count());
 
                 return paths.GroupBy(x => MostCommonTag(x.Value, tagDictionary, groupingStrategy == GroupingStrategy.MostCommonTag));
             }

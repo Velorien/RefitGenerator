@@ -2,9 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-
+using System.Text.RegularExpressions;
 using static RefitGenerator.Helpers.Strings;
 using static RefitGenerator.Helpers.TypeHelper;
 
@@ -12,10 +11,10 @@ namespace RefitGenerator.Helpers
 {
     static class ModelWriter
     {
+        private static readonly Regex propertyRegex = new Regex("[^a-zA-Z].*");
+
         public static void WriteModel(GeneratorOptions options, string className, IDictionary<string, OpenApiSchema> properties)
         {
-            if (!properties.Any()) return;
-
             string classCode = GetModelClass(options, className, properties);
             File.WriteAllText(Path.Combine(options.OutputDirectory.FullName, ModelsDirectory, className + ".cs"), classCode);
         }
@@ -27,13 +26,16 @@ namespace RefitGenerator.Helpers
 
             foreach (var property in properties)
             {
-                string propertyName = property.Key;
+                string originalName = property.Key;
                 var propertySchema = property.Value;
+                string propertyName = originalName.ToPascalCase();
+                if (propertyRegex.IsMatch(propertyName))
+                    propertyName = "Property_" + propertyName;
 
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + JpnFormat, propertyName);
+                sb.AppendFormat(Indent2 + JpnFormat, originalName);
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyName.ToPascalCase(), propertySchema), propertyName.ToPascalCase());
+                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyName, propertySchema), propertyName);
                 sb.AppendLine();
             }
 

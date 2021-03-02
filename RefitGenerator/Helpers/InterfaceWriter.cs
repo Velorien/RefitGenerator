@@ -86,16 +86,17 @@ namespace RefitGenerator.Helpers
 
         private static string ParseParameter(GeneratorOptions options, string operationName, OpenApiParameter parameter)
         {
-            // todo: support it somehow
-            if (parameter.In == ParameterLocation.Header) return null;
-
             var nameSegments = new List<string>();
             string camelCaseName = parameter.Name.ToCamelCase();
+
+            if (parameter.In == ParameterLocation.Header)
+                nameSegments.Add($"[Header(\"{parameter.Name}\")]");
 
             if (parameter.In == ParameterLocation.Query)
                 nameSegments.Add("[Query]");
 
-            if (camelCaseName != parameter.Name) nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
+            if (parameter.In != ParameterLocation.Header && camelCaseName != parameter.Name)
+                nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
 
             nameSegments.Add(ToCLRType(options, operationName, "Parameter", parameter.Schema));
             nameSegments.Add(camelCaseName);

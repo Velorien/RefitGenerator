@@ -7,6 +7,21 @@ namespace RefitGenerator.Helpers
 {
     static class TypeHelper
     {
+        public static string ToCLRSimpleType(GeneratorOptions options, OpenApiSchema property) =>
+            property switch
+            {
+                { Type: "array" } => ToCLRSimpleType(options, property.Items) + "[]",
+                { Type: "string", Format: "binary" } => "Stream",
+                { Type: "string", Format: "date" or "date-time" } => "DateTime" + Nullable(property),
+                { Type: "string" } => "string",
+                { Type: "boolean" } => "bool" + Nullable(property),
+                { Type: "number", Format: "float" } => "float" + Nullable(property),
+                { Type: "number" } => "double" + Nullable(property),
+                { Type: "integer", Format: "int64" } => "long" + Nullable(property),
+                { Type: "integer" } => "int" + Nullable(property),
+                _ => "object"
+            };
+
         public static string ToCLRType(GeneratorOptions options, string enclosingType, string propertyName, OpenApiSchema property) =>
             property switch
             {
@@ -19,15 +34,14 @@ namespace RefitGenerator.Helpers
                 { Type: "number" } => "double" + Nullable(property),
                 { Type: "integer", Format: "int64" } => "long" + Nullable(property),
                 { Type: "integer" } => "int" + Nullable(property),
-                { Reference: { Id: { } id } } => id.ToPascalCase(),
                 { AdditionalProperties: { } ap } => $"Dictionary<string, {ToCLRType(options, enclosingType, propertyName, ap)}>",
+                { Reference: { Id: { } id } } => options.SimpleTypeMap.ContainsKey(id) ? options.SimpleTypeMap[id] : id.ToPascalCase(),
                 { } => GetCompoundType(options, $"{enclosingType}_{propertyName}", property),
                 _ => "object"
             };
 
         public static string GetCompoundType(GeneratorOptions options, string typeName, OpenApiSchema schema)
         {
-
             var allProperties = new List<OpenApiSchema>();
             ScanSchemaProperties(schema, allProperties);
             var properties = allProperties

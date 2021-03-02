@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 
 namespace RefitGenerator
 {
@@ -11,6 +12,7 @@ namespace RefitGenerator
         public bool RemoveIfExists { get; set; }
         public bool Executable { get; set; }
         public GroupingStrategy GroupingStrategy { get; set; }
+        public Dictionary<string, string> SimpleTypeMap { get; } = new Dictionary<string, string>();
     }
 
     public enum GroupingStrategy
