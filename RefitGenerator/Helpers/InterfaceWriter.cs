@@ -90,7 +90,14 @@ namespace RefitGenerator.Helpers
             string camelCaseName = parameter.Name.ToCamelCase();
 
             if (parameter.In == ParameterLocation.Header)
+            {
+                if (options.IgnoreAllHeaders || (options.IgnoredHeaders?.Contains(parameter.Name) ?? false))
+                {
+                    return null;
+                }
+
                 nameSegments.Add($"[Header(\"{parameter.Name}\")]");
+            }
 
             if (parameter.In == ParameterLocation.Query)
                 nameSegments.Add("[Query]");

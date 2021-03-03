@@ -35,7 +35,9 @@ namespace RefitGenerator
                 {
                     Description = "Remove target directory if exists"
                 },
-                new Option<bool>("--executable", "Generate a .NET 5 console app instead of .NET Standard 2.0 library")
+                new Option<bool>("--executable", "Generate a .NET 5 console app instead of .NET Standard 2.0 library"),
+                new Option<bool>("--ignoreAllHeaders", "Ignores all header parameters"),
+                new Option<string[]>("--ignoredHeaders", "Provides a list of headers to ignore")
             };
 
             rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);

@@ -12,6 +12,9 @@ namespace RefitGenerator
         public bool RemoveIfExists { get; set; }
         public bool Executable { get; set; }
         public GroupingStrategy GroupingStrategy { get; set; }
+        public bool IgnoreAllHeaders { get; set; }
+        public string[] IgnoredHeaders { get; set; }
+
         public Dictionary<string, string> SimpleTypeMap { get; } = new Dictionary<string, string>();
     }
 
