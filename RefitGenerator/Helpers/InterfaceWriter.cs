@@ -12,6 +12,8 @@ namespace RefitGenerator.Helpers
 {
     static class InterfaceWriter
     {
+        private static readonly string[] nonNullableTypes = { "int", "double", "float", "long", "DateTime", "bool" };
+
         public static string GetApiInterface(GeneratorOptions options, string apiName, IEnumerable<KeyValuePair<string, OpenApiPathItem>> paths)
         {
             var sb = new StringBuilder();
@@ -64,10 +66,11 @@ namespace RefitGenerator.Helpers
             }
 
             // build parameters list from query, route, body, etc.
-            string parameters = string.Join(", ", operation.Parameters
+            string parameters = string.Join(", ", ParseBody(options, operationName, operation.RequestBody)
+                .Concat(operation.Parameters
+                    .OrderByDescending(x => x.Required)
                     .Select(x => ParseParameter(options, operationName, x))
-                    .Where(x => x != null)
-                    .Concat(ParseBody(options, operationName, operation.RequestBody)));
+                    .Where(x => x != null)));
 
             sb.AppendLine($"{Indent2}{returnType} {operationName}({parameters});");
 
@@ -105,7 +108,18 @@ namespace RefitGenerator.Helpers
             if (parameter.In != ParameterLocation.Header && camelCaseName != parameter.Name)
                 nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
 
-            nameSegments.Add(ToCLRType(options, operationName, "Parameter", parameter.Schema));
+            string parameterType = ToCLRType(options, operationName, "Parameter", parameter.Schema);
+            if (!parameter.Required && !parameterType.EndsWith("?") && nonNullableTypes.Contains(parameterType))
+            {
+                parameterType += "?";
+            }
+
+            nameSegments.Add(parameterType);
+            if (!parameter.Required && options.AddEqualsNullToOptionalParameters)
+            {
+                camelCaseName += " = null";
+            }
+
             nameSegments.Add(camelCaseName);
             return string.Join(" ", nameSegments);
         }

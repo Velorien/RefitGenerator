@@ -14,6 +14,7 @@ namespace RefitGenerator
         public GroupingStrategy GroupingStrategy { get; set; }
         public bool IgnoreAllHeaders { get; set; }
         public string[] IgnoredHeaders { get; set; }
+        public bool AddEqualsNullToOptionalParameters { get; set; }
 
         public Dictionary<string, string> SimpleTypeMap { get; } = new Dictionary<string, string>();
     }

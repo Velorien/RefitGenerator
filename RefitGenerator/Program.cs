@@ -37,7 +37,8 @@ namespace RefitGenerator
                 },
                 new Option<bool>("--executable", "Generate a .NET 5 console app instead of .NET Standard 2.0 library"),
                 new Option<bool>("--ignoreAllHeaders", "Ignores all header parameters"),
-                new Option<string[]>("--ignoredHeaders", "Provides a list of headers to ignore")
+                new Option<string[]>("--ignoredHeaders", "Provides a list of headers to ignore"),
+                new Option<bool>("--addEqualsNullToOptionalParameters", "Makes optional parameters have a default null value in api interfaces")
             };
 
             rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);
