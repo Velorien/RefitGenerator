@@ -109,12 +109,19 @@ namespace RefitGenerator.Helpers
                 nameSegments.Add($"[AliasAs(\"{parameter.Name}\")]");
 
             string parameterType = ToCLRType(options, operationName, "Parameter", parameter.Schema);
+
             if (!parameter.Required && !parameterType.EndsWith("?") && nonNullableTypes.Contains(parameterType))
             {
                 parameterType += "?";
             }
 
             nameSegments.Add(parameterType);
+
+            if (CSharpKeywords.IsKeyword(camelCaseName))
+            {
+                camelCaseName = "@" + camelCaseName;
+            }
+
             if (!parameter.Required && options.AddEqualsNullToOptionalParameters)
             {
                 camelCaseName += " = null";

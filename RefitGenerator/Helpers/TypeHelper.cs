@@ -26,6 +26,7 @@ namespace RefitGenerator.Helpers
             property switch
             {
                 { Type: "array" } => ToCLRType(options, enclosingType, propertyName, property.Items) + "[]",
+                { Items: { } } => ToCLRType(options, enclosingType, propertyName, property.Items) + "[]",
                 { Type: "string", Format: "binary" } => "Stream",
                 { Type: "string", Format: "date" or "date-time" } => "DateTime" + Nullable(property),
                 { Type: "string" } => "string",

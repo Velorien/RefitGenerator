@@ -32,10 +32,21 @@ namespace RefitGenerator.Helpers
                 if (propertyRegex.IsMatch(propertyName))
                     propertyName = "Property_" + propertyName;
 
+                // so that conflict-resolving affixes do not pollute the class name
+                string propertyAsTypeName = propertyName;
+
+                if (propertyName == className)
+                {
+                    if (options.PrefixConflictingName)
+                        propertyName = options.ConflictingNameAffix + propertyName;
+                    else
+                        propertyName += options.ConflictingNameAffix;
+                }
+
                 sb.AppendLine();
                 sb.AppendFormat(Indent2 + JpnFormat, originalName);
                 sb.AppendLine();
-                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyName, propertySchema), propertyName);
+                sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyAsTypeName, propertySchema), propertyName);
                 sb.AppendLine();
             }
 
