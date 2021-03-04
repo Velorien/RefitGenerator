@@ -1,6 +1,8 @@
 # Refit Generator
 _aka ReGen_
 
+[![nuget](https://img.shields.io/nuget/v/RefitGenerator)](https://www.nuget.org/packages/RefitGenerator/)
+
 RefitGenerator is a global `dotnet tool` used to generate [Refit](https://github.com/reactiveui/refit) client code from OpenApi schemas.
 
 ## Usage
