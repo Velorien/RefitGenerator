@@ -1,9 +1,13 @@
-# Refit Generator
-_aka ReGen_
+# RefitGenerator
+_aka `regen`_
 
 [![nuget](https://img.shields.io/nuget/v/RefitGenerator)](https://www.nuget.org/packages/RefitGenerator/)
 
 RefitGenerator is a global `dotnet tool` used to generate [Refit](https://github.com/reactiveui/refit) client code from OpenApi schemas.
+
+## Installation
+
+With .NET 5 installed run: `dotnet tool install -g refitgenerator`
 
 ## Usage
 
@@ -29,3 +33,20 @@ Typing `regen -h` will display a list of parameters:
 * `--conflictingNameAffix` - adds an affix to a property if its name conflicts with the enclosing type name, not validated whether the resulting property name is a valid identifier
   * defaults to `Prop`
 * `--prefixConflictingName` - if this flag is set, the `--conflictingNameAffix` will be a prefix, otherwise it will be a suffix
+
+## Caveats
+
+* This tool does not resolve conflicting type names. For instance, if your schema defines a type which generates a class named `Environment`, you see an error that `System.Environment` conflicts with `YourNamespace.Models.Environment`
+* If an object schema has nested, non-reference object schemas, the tool cannot give the nested nice names, so the resulting type name will be `ParentType_PropertyName`
+
+## Dependencies
+
+* [System.Commandline](https://github.com/dotnet/command-line-api) for parsing commandline parameters
+* [OpenAPI.NET](https://github.com/microsoft/OpenAPI.NET) - for reading the OpenApi schemas
+
+## Try it out
+
+* [Github API](https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.yaml) - causes the conflict described in Caveats
+* [Petstore](https://petstore.swagger.io/v2/swagger.json) - the one and only
+* [Slack API](https://raw.githubusercontent.com/slackapi/slack-api-specs/master/web-api/slack_web_openapi_v2_without_examples.json)
+* [Official examples from spec](https://github.com/OAI/OpenAPI-Specification/tree/master/examples)
