@@ -84,7 +84,7 @@ namespace RefitGenerator.Helpers
 
             // operation id not found, create a name from method and route
             return operationType + "__" + string.Join("_",
-                path.Split('/', StringSplitOptions.RemoveEmptyEntries).Where(x => !x.StartsWith("{")).Select(x => x.Capitalize()));
+                path.Split('/', StringSplitOptions.RemoveEmptyEntries).Where(x => !x.StartsWith("{")).Select(x => x.ToPascalCase()));
         }
 
         private static string ParseParameter(GeneratorOptions options, string operationName, OpenApiParameter parameter)

@@ -5,7 +5,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>regen</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Authors>Velorien</Authors>
     <Company />
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
