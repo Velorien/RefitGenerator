@@ -33,6 +33,7 @@ Typing `regen -h` will display a list of parameters:
 * `--conflictingNameAffix` - adds an affix to a property if its name conflicts with the enclosing type name, not validated whether the resulting property name is a valid identifier
   * defaults to `Prop`
 * `--prefixConflictingName` - if this flag is set, the `--conflictingNameAffix` will be a prefix, otherwise it will be a suffix
+* `--skipDeprecatedProperties` - if this flag is set, schema properties marked as `Deprecated` are not included in the model
 
 ## Caveats
 
