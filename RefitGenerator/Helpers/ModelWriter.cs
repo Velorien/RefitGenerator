@@ -26,8 +26,12 @@ namespace RefitGenerator.Helpers
 
             foreach (var property in properties)
             {
+
                 string originalName = property.Key;
                 var propertySchema = property.Value;
+
+                if (options.SkipDeprecatedProperties && propertySchema.Deprecated) continue;
+
                 string propertyName = originalName.ToPascalCase();
                 if (propertyRegex.IsMatch(propertyName))
                     propertyName = "Property_" + propertyName;
@@ -44,6 +48,10 @@ namespace RefitGenerator.Helpers
                 }
 
                 sb.AppendLine();
+                if (propertySchema.Deprecated)
+                {
+                    sb.AppendLine(Indent2 + "[Obsolete]");
+                }
                 sb.AppendFormat(Indent2 + JpnFormat, originalName);
                 sb.AppendLine();
                 sb.AppendFormat(Indent2 + ModelPropFormat, ToCLRType(options, className, propertyAsTypeName, propertySchema), propertyName);

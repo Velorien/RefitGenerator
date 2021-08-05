@@ -17,6 +17,7 @@ namespace RefitGenerator
         public bool AddEqualsNullToOptionalParameters { get; set; }
         public string ConflictingNameAffix { get; set; }
         public bool PrefixConflictingName { get; set; }
+        public bool SkipDeprecatedProperties { get; set; }
 
         public Dictionary<string, string> SimpleTypeMap { get; } = new Dictionary<string, string>();
     }

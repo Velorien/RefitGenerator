@@ -44,7 +44,8 @@ namespace RefitGenerator
                     // todo - validate if not stupid?
                     Description = "A string a property name will be prefixed with to avoid conflict with the enclosing type name",
                 },
-                new Option<bool>("--prefixConflictingName", "Whether to prefix or suffix the conflicting property name with configured affix")
+                new Option<bool>("--prefixConflictingName", "Whether to prefix or suffix the conflicting property name with configured affix"),
+                new Option<bool>("--skipDeprecatedProperties", "Whether to skip deprecated properties or include them with [Obsolete] attribute")
             };
 
             rootCommand.Handler = CommandHandler.Create<GeneratorOptions>(Generator.Generate);
